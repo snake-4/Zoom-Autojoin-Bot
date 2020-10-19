@@ -1,6 +1,6 @@
-# Yet-Another-Zoom-Autojoin-Bot-CSharp (YAZAB) [![HitCount](http://hits.dwyl.com/SnakePin/Yet-Another-Zoom-Autojoin-Bot-CSharp.svg)](http://hits.dwyl.com/SnakePin/Yet-Another-Zoom-Autojoin-Bot-CSharp)
+# Yet-Another-Zoom-Autojoin-Bot-CSharp
 
-YAZAB-CSharp is the C# version of [this autojoin bot](https://github.com/SnakePin/Yet-Another-Zoom-Autojoin-Bot) that I've wrote. I'll no longer update the Python version because this version is better.
+This is the C# version of [this autojoin bot](https://github.com/SnakePin/Yet-Another-Zoom-Autojoin-Bot) that I've wrote. I'll no longer update the Python version because this version is better.
 
 ## Installation
 #### Download the [latest release from here](https://github.com/SnakePin/Yet-Another-Zoom-Autojoin-Bot-CSharp/releases)
@@ -9,11 +9,11 @@ YAZAB-CSharp is the C# version of [this autojoin bot](https://github.com/SnakePi
 
 #### Create a .csv file for scheduled meetings, take the CSV format below as reference.
 ```
-daysInteger,timeIn24H,meetingId,meetingPsw,meetingTimeInSeconds,comment
+dayOfWeek,timeIn24H,meetingId,meetingPsw,meetingTimeInSeconds,comment
 1,09:00,111222333,password,3600,Physics
-8,12:00,111222333,password,3600,Job interview
+2,12:00,111222333,password,3600,Job interview
 ```
-* `daysInteger` field is a bit-field, bits from 0 to 7 signify the days of the week starting from Monday.
+* `dayOfWeek` field can have the value of any number from 1 to 7 with each number representing a day of the week starting from Monday.
 * Other fields are self explanatory.
 
 #### Run the program and enter the path to the .csv file when asked.
