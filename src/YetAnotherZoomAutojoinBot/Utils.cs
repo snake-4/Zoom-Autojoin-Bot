@@ -17,7 +17,8 @@ namespace YAZABNET
     {
         internal static TimeSpan TimeSpanFrom24HString(string str24hour)
         {
-            return TimeSpan.ParseExact(str24hour.Replace(":", ""), new string[] { "hhmm", @"hh\:mm" }, CultureInfo.InvariantCulture);
+            str24hour = str24hour.Replace(":", "").PadLeft(4, '0');
+            return TimeSpan.ParseExact(str24hour, new string[] { "hhmm", @"hh\:mm" }, CultureInfo.InvariantCulture);
         }
 
         internal static Process[] FindProcess(string executable)
@@ -92,15 +93,17 @@ namespace YAZABNET
 
         internal static void ClickButtonInWindowByText(Window window, string text)
         {
-            var button = window.FindFirstDescendant(x => x.ByText(text).And(x.ByControlType(FlaUI.Core.Definitions.ControlType.Button)))?.AsButton();
-            button.WaitUntilEnabled(TimeSpan.FromSeconds(10));
-
             DidPredicateBecomeTrueWithinTimeout(() =>
             {
                 try
                 {
-                    button.Click();
-                    return true;
+                    var button = window.FindFirstDescendant(x => x.ByText(text).And(x.ByControlType(FlaUI.Core.Definitions.ControlType.Button)))?.AsButton();
+                    if (button != null)
+                    {
+                        button.WaitUntilEnabled(TimeSpan.FromSeconds(10));
+                        button.Click();
+                        return true;
+                    }
                 }
                 catch (FlaUI.Core.Exceptions.NoClickablePointException) { }
                 return false;

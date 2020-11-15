@@ -61,10 +61,16 @@ namespace YAZABNET
                         {
                             int secondsUntilMeetingEnds = (int)(meetingEndDate - currentDate).TotalSeconds;
 
-                            Console.WriteLine($"Joining a session. ID: {schedule.MeetingID} Password: {schedule.MeetingPSW} MeetingTimeInSeconds: {schedule.MeetingTimeInSeconds}");
+                            Console.WriteLine("Joining a session.");
+                            Console.WriteLine($"-> Comment: {schedule.Comment}");
+                            Console.WriteLine($"-> ID: {schedule.MeetingID}");
+                            Console.WriteLine($"-> Password: {schedule.MeetingPSW}");
+                            Console.WriteLine($"-> MeetingTimeInSeconds: {schedule.MeetingTimeInSeconds}");
+
                             try
                             {
                                 ZoomAutomationFunctions.ZoomJoinLeaveTask(schedule.MeetingID, schedule.MeetingPSW, secondsUntilMeetingEnds);
+                                Console.WriteLine($"Session finished.");
                             }
                             catch (Exception exc)
                             {
@@ -89,8 +95,6 @@ namespace YAZABNET
         public string MeetingPSW;
 
         public int MeetingTimeInSeconds;
-
-        [FieldValueDiscarded]
         public string Comment;
     }
 }

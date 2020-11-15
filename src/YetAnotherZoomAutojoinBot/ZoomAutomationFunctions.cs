@@ -52,7 +52,7 @@ namespace YAZABNET
         static void StartZoom()
         {
             KillZoom();
-            Process.Start(GetZoomPath());
+            Process.Start(GetZoomPath()).WaitForInputIdle();
         }
 
         static async Task<IEnumerable<Window>> GetZoomWindowsByClassNameWithTimeoutAsync(AutomationBase automation, string classname, double timeoutInSeconds)
