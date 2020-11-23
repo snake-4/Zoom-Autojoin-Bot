@@ -14,9 +14,17 @@ namespace YAZABNET
 {
     internal static class ZoomAutomationFunctions
     {
-        const string ZPFTEWndClass_LoadingConnectingString = "Connecting\u2026";
-        const string ZPFTEWndClass_JoinAMeetingBtnString = "Join a Meeting";
         const string zoomExecutableName = "Zoom.exe";
+        const string ZPFTEWndClass_LoadingConnectingString = "Connecting\u2026"; //Both signed-in and anonymous users loading screen
+        const string ZPFTEWndClass_JoinAMeetingBtnString = "Join a Meeting"; //Anonymous users menu
+        const string ZPPTMainFrmWndClassEx_JoinBtnString = "Join"; //Signed-in users menu
+        const string zWaitHostWndClass_JoinBtnString = "Join"; //Actual join meeting menu
+        const string zWaitHostWndClass_MeetingIDTextBoxString = "Please enter your Meeting ID or Personal Link Name";
+        const string zWaitHostWndClass_UserNameTextBoxString = "Please enter your name";
+        const string zWaitHostWndClass_MeetingPasscodeScreenTitle = "Enter meeting passcode";
+        const string VideoPreviewWndClass_JoinWithoutVideoBtnString = "Join without Video";
+        const string zWaitHostWndClass_PasswordTextBoxString = "Please enter meeting passcode";
+        const string zWaitHostWndClass_PasswordScreenJoinBtnString = "Join Meeting";
 
         static string GetZoomPath()
         {
@@ -95,7 +103,7 @@ namespace YAZABNET
             var menu = GetZoomMainMenu(automation, 30);
             if (menu.ClassName == "ZPPTMainFrmWndClassEx")
             {
-                Utils.ClickButtonInWindowByText(menu, "Join");
+                Utils.ClickButtonInWindowByText(menu, ZPPTMainFrmWndClassEx_JoinBtnString);
             }
             else if (menu.ClassName == "ZPFTEWndClass")
             {
@@ -114,21 +122,21 @@ namespace YAZABNET
         {
             var joinMenu = GetZoomWindowsByClassNameWithTimeoutAsync(automation, "zWaitHostWndClass", timeoutInSeconds).Result.First();
 
-            Utils.SetEditControlInputByText(joinMenu, "Please enter your Meeting ID or Personal Link Name", meetingid);
+            Utils.SetEditControlInputByText(joinMenu, zWaitHostWndClass_MeetingIDTextBoxString, meetingid);
 
             if (username != null)
             {
-                Utils.SetEditControlInputByText(joinMenu, "Please enter your name", username);
+                Utils.SetEditControlInputByText(joinMenu, zWaitHostWndClass_UserNameTextBoxString, username);
             }
 
-            Utils.ClickButtonInWindowByText(joinMenu, "Join");
+            Utils.ClickButtonInWindowByText(joinMenu, zWaitHostWndClass_JoinBtnString);
 
             if (Utils.DidPredicateBecomeTrueWithinTimeout(() =>
             {
                 try
                 {
                     joinMenu = GetZoomWindowsByClassNameWithTimeoutAsync(automation, "zWaitHostWndClass", timeoutInSeconds).Result.First();
-                    return joinMenu.IsAvailable && joinMenu.Title == "Enter meeting passcode";
+                    return joinMenu.IsAvailable && joinMenu.Title == zWaitHostWndClass_MeetingPasscodeScreenTitle;
                 }
                 catch
                 {
@@ -136,8 +144,8 @@ namespace YAZABNET
                 }
             }, 10).Result)
             {
-                Utils.SetEditControlInputByText(joinMenu, "Please enter meeting passcode", meetingpsw);
-                Utils.ClickButtonInWindowByText(joinMenu, "Join Meeting");
+                Utils.SetEditControlInputByText(joinMenu, zWaitHostWndClass_PasswordTextBoxString, meetingpsw);
+                Utils.ClickButtonInWindowByText(joinMenu, zWaitHostWndClass_PasswordScreenJoinBtnString);
             }
         }
 
@@ -177,7 +185,7 @@ namespace YAZABNET
             {
                 return;
             }
-            Utils.ClickButtonInWindowByText(findCamPreviewWindow, "Join without Video");
+            Utils.ClickButtonInWindowByText(findCamPreviewWindow, VideoPreviewWndClass_JoinWithoutVideoBtnString);
         }
 
         static bool JoinZoom(string meetingID, string meetingPSW)
