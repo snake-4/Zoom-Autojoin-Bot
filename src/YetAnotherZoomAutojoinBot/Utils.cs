@@ -28,36 +28,6 @@ namespace YAZABNET
             return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(executable));
         }
 
-        public static async Task<bool> DidPredicateBecomeTrueWithinTimeout(Func<bool> predicate, TimeSpan timeout)
-        {
-            return await Task.Run(() => Retry.WhileFalse(predicate, timeout, TimeSpan.FromMilliseconds(500), true, true).Result);
-
-            /*var cts = new CancellationTokenSource();
-
-            var task = Task.Run(async () =>
-            {
-                while (!cts.IsCancellationRequested)
-                {
-                    if (predicate())
-                    {
-                        return true;
-                    }
-                    await Task.Delay(100); //TODO
-                }
-                return false;
-            });
-
-            if (await Task.WhenAny(task, Task.Delay(timeout)) == task)
-            {
-                return task.Result;
-            }
-            else
-            {
-                cts.Cancel();
-                return false;
-            }*/
-        }
-
         public static IEnumerable<Window> GetTopLevelWindowsByClassName(AutomationBase automation, string className)
         {
             var desktop = automation.GetDesktop();
@@ -72,7 +42,7 @@ namespace YAZABNET
         public static async Task<List<Window>> GetWindowsByClassNameAndProcessNameWithTimeoutAsync(AutomationBase automation, string processName, string className, TimeSpan timeout)
         {
             var windows = new List<Window>();
-            bool isSuccesful = await DidPredicateBecomeTrueWithinTimeout(() =>
+            await Task.Run(() => Retry.WhileFalse(() =>
             {
                 var processIDs = FindProcess(processName).Select(x => x.Id);
 
@@ -80,16 +50,8 @@ namespace YAZABNET
                     .Where(x => processIDs.Contains(x.Properties.ProcessId)));
 
                 return windows.Count > 0;
-            }, timeout);
-
-            if (isSuccesful)
-            {
-                return windows;
-            }
-            else
-            {
-                throw new Exception("Timed out");
-            }
+            }, timeout, TimeSpan.FromMilliseconds(500), true, true));
+            return windows;
         }
 
         public static void ClickButtonInWindowByText(Window window, string text)

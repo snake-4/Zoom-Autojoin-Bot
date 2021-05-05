@@ -147,22 +147,19 @@ namespace YAZABNET
         async Task<Window> GetZoomPasswordScreenWindow(TimeSpan timeout)
         {
             Window passwordMenu = null;
-            if (!await Utils.DidPredicateBecomeTrueWithinTimeout(() =>
-             {
-                 var windows = GetZoomWindowsByClassNameWithTimeoutAsync("zWaitHostWndClass", timeout).Result;
-                 foreach (var window in windows)
-                 {
-                     if (window.IsAvailable && window.Title == zWaitHostWndClass_MeetingPasscodeScreenTitle)
-                     {
-                         passwordMenu = window;
-                         return true;
-                     }
-                 }
-                 return false;
-             }, timeout))
-            {
-                throw new Exception("Timed out");
-            }
+            await Task.Run(() => Retry.WhileFalse(() =>
+              {
+                  var windows = GetZoomWindowsByClassNameWithTimeoutAsync("zWaitHostWndClass", timeout).Result;
+                  foreach (var window in windows)
+                  {
+                      if (window.IsAvailable && window.Title == zWaitHostWndClass_MeetingPasscodeScreenTitle)
+                      {
+                          passwordMenu = window;
+                          return true;
+                      }
+                  }
+                  return false;
+              }, timeout, defaultIntervalForFunctions, true, true));
             return passwordMenu;
         }
 
@@ -172,6 +169,8 @@ namespace YAZABNET
             var findCamPreviewTask = GetZoomWindowsByClassNameWithTimeoutAsync("VideoPreviewWndClass", timeout);
             var mainWindowTask = GetZoomWindowsByClassNameWithTimeoutAsync("ZPContentViewWndClass", timeout);
             var passwordRequiredTask = GetZoomPasswordScreenWindow(timeout);
+
+            //TODO: cancel all the other tasks when one of them completes
 
             do
             {
