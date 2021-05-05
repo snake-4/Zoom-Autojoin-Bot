@@ -14,6 +14,8 @@ namespace YAZABNET
             return fvi.FileVersion;
         }
 
+        static ZoomAutomation zoomAutomation = new ZoomAutomation();
+
         static void Main(string[] args)
         {
             Console.WriteLine("Zoom autojoin bot by SnakePin, this time made with .NET!");
@@ -64,12 +66,12 @@ namespace YAZABNET
                             Console.WriteLine("Joining a session.");
                             Console.WriteLine($"-> Comment: {schedule.Comment}");
                             Console.WriteLine($"-> ID: {schedule.MeetingID}");
-                            Console.WriteLine($"-> Password: {schedule.MeetingPSW}");
+                            Console.WriteLine($"-> Password: {schedule.MeetingPassword}");
                             Console.WriteLine($"-> MeetingTimeInSeconds: {schedule.MeetingTimeInSeconds}");
 
                             try
                             {
-                                ZoomAutomationFunctions.ZoomJoinLeaveTask(schedule.MeetingID, schedule.MeetingPSW, secondsUntilMeetingEnds);
+                                zoomAutomation.ZoomJoinWaitLeave(schedule.MeetingID, schedule.MeetingPassword, secondsUntilMeetingEnds);
                                 Console.WriteLine($"Session finished.");
                             }
                             catch (Exception exc)
@@ -88,13 +90,19 @@ namespace YAZABNET
     [IgnoreFirst()]
     public class ScheduleEntry
     {
+        [FieldOrder(1)]
         public int DayOfWeek;
+        [FieldOrder(2)]
         public string TimeIn24H;
 
+        [FieldOrder(3)]
         public string MeetingID;
-        public string MeetingPSW;
+        [FieldOrder(4)]
+        public string MeetingPassword;
 
+        [FieldOrder(5)]
         public int MeetingTimeInSeconds;
+        [FieldOrder(6)]
         public string Comment;
     }
 }
