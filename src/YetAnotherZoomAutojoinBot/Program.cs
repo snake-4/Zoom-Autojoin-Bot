@@ -32,7 +32,7 @@ namespace YAZABNET
                 csvFilePath = Console.ReadLine(); ;
             }
 
-            if(!File.Exists(csvFilePath))
+            if (!File.Exists(csvFilePath))
             {
                 Console.WriteLine("Invalid file path specified!");
                 return;
@@ -63,7 +63,7 @@ namespace YAZABNET
                         {
                             int secondsUntilMeetingEnds = (int)(meetingEndDate - currentDate).TotalSeconds;
 
-                            Console.WriteLine("Joining a session.");
+                            Console.WriteLine("Joining a session...");
                             Console.WriteLine($"-> Comment: {schedule.Comment}");
                             Console.WriteLine($"-> ID: {schedule.MeetingID}");
                             Console.WriteLine($"-> Password: {schedule.MeetingPassword}");
@@ -71,12 +71,21 @@ namespace YAZABNET
 
                             try
                             {
-                                zoomAutomation.ZoomJoinWaitLeave(schedule.MeetingID, schedule.MeetingPassword, secondsUntilMeetingEnds);
-                                Console.WriteLine($"Session finished.");
+                                if (!zoomAutomation.JoinZoom(schedule.MeetingID, schedule.MeetingPassword))
+                                {
+                                    Console.WriteLine("Failed joining the session for an unknown reason.");
+                                    continue;
+                                }
+                                Console.WriteLine("Joined the session.");
+
+                                Thread.Sleep(schedule.MeetingTimeInSeconds * 1000);
+                                zoomAutomation.KillZoom();
+
+                                Console.WriteLine("Session finished.");
                             }
                             catch (Exception exc)
                             {
-                                Console.WriteLine("Failed joining session. Sorry! Exception: " + exc);
+                                Console.WriteLine("Failed joining the session. Sorry! Exception: " + exc);
                             }
                         }
                     }

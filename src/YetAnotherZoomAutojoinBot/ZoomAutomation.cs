@@ -23,16 +23,18 @@ namespace YAZABNET
         const string zWaitHostWndClass_MeetingIDTextBoxString = "Please enter your Meeting ID or Personal Link Name";
         const string zWaitHostWndClass_UserNameTextBoxString = "Please enter your name";
         const string zWaitHostWndClass_MeetingPasscodeScreenTitle = "Enter meeting passcode";
+        const string zWaitHostWndClass_WaitingForHostScreenTitle = "Waiting for Host";
         const string VideoPreviewWndClass_JoinWithoutVideoBtnString = "Join without Video";
         const string zWaitHostWndClass_PasswordTextBoxString = "Please enter meeting passcode";
         const string zWaitHostWndClass_PasswordScreenJoinBtnString = "Join Meeting";
 
         enum ZoomState
         {
-            InMeeting,
+            JoinedMeeting,
             CamPreviewWindow,
             JoiningFailed,
-            PasswordRequired
+            PasswordRequired,
+            UnknownState
         };
 
         AutomationBase automation = new UIA3Automation();
@@ -61,7 +63,7 @@ namespace YAZABNET
             return null;
         }
 
-        void KillZoom()
+        public void KillZoom()
         {
             foreach (var item in Utils.FindProcess(zoomExecutableName))
             {
@@ -78,6 +80,25 @@ namespace YAZABNET
         async Task<List<Window>> GetZoomWindowsByClassNameWithTimeoutAsync(string classname, TimeSpan timeout)
         {
             return await Utils.GetWindowsByClassNameAndProcessNameWithTimeoutAsync(automation, zoomExecutableName, classname, timeout);
+        }
+
+        async Task<Window> GetZoomWindowByClassNameAndTitleWithTimeoutAsync(string classname, string title, TimeSpan timeout)
+        {
+            Window returnValue = null;
+            await Task.Run(() => Retry.WhileFalse(() =>
+            {
+                var windows = GetZoomWindowsByClassNameWithTimeoutAsync(classname, timeout).Result;
+                foreach (var window in windows)
+                {
+                    if (window.IsAvailable && window.Title == title)
+                    {
+                        returnValue = window;
+                        return true;
+                    }
+                }
+                return false;
+            }, timeout, defaultIntervalForFunctions, true, true));
+            return returnValue;
         }
 
         Window GetZoomMainMenu(TimeSpan timeout)
@@ -144,64 +165,62 @@ namespace YAZABNET
             Utils.ClickButtonInWindowByText(joinMenu, zWaitHostWndClass_JoinBtnString);
         }
 
+        async Task<Window> GetZoomWaitingForHostWindow(TimeSpan timeout)
+            => await GetZoomWindowByClassNameAndTitleWithTimeoutAsync("zWaitHostWndClass", zWaitHostWndClass_WaitingForHostScreenTitle, timeout);
+
         async Task<Window> GetZoomPasswordScreenWindow(TimeSpan timeout)
-        {
-            Window passwordMenu = null;
-            await Task.Run(() => Retry.WhileFalse(() =>
-              {
-                  var windows = GetZoomWindowsByClassNameWithTimeoutAsync("zWaitHostWndClass", timeout).Result;
-                  foreach (var window in windows)
-                  {
-                      if (window.IsAvailable && window.Title == zWaitHostWndClass_MeetingPasscodeScreenTitle)
-                      {
-                          passwordMenu = window;
-                          return true;
-                      }
-                  }
-                  return false;
-              }, timeout, defaultIntervalForFunctions, true, true));
-            return passwordMenu;
-        }
+            => await GetZoomWindowByClassNameAndTitleWithTimeoutAsync("zWaitHostWndClass", zWaitHostWndClass_MeetingPasscodeScreenTitle, timeout);
 
         ZoomState GetZoomStateAfterJoin(TimeSpan timeout)
         {
-            var findFailedTask = GetZoomWindowsByClassNameWithTimeoutAsync("zJoinMeetingFailedDlgClass", timeout);
-            var findCamPreviewTask = GetZoomWindowsByClassNameWithTimeoutAsync("VideoPreviewWndClass", timeout);
-            var mainWindowTask = GetZoomWindowsByClassNameWithTimeoutAsync("ZPContentViewWndClass", timeout);
-            var passwordRequiredTask = GetZoomPasswordScreenWindow(timeout);
+            var task_passwordRequired = GetZoomPasswordScreenWindow(timeout);
+            var task_waitingForHost = GetZoomWaitingForHostWindow(timeout);
+            var task_joiningFailed = GetZoomWindowsByClassNameWithTimeoutAsync("zJoinMeetingFailedDlgClass", timeout);
+            var task_cameraPreview = GetZoomWindowsByClassNameWithTimeoutAsync("VideoPreviewWndClass", timeout);
+            var task_meetingWindow = GetZoomWindowsByClassNameWithTimeoutAsync("ZPContentViewWndClass", timeout);
 
             //TODO: cancel all the other tasks when one of them completes
 
             do
             {
-                if (findCamPreviewTask.IsCompleted && !findCamPreviewTask.IsFaulted)
+                if (task_cameraPreview.IsCompleted && !task_cameraPreview.IsFaulted)
                 {
                     return ZoomState.CamPreviewWindow;
                 }
-                else if (mainWindowTask.IsCompleted && !mainWindowTask.IsFaulted)
+                else if ((task_meetingWindow.IsCompleted && !task_meetingWindow.IsFaulted)
+                    || (task_waitingForHost.IsCompleted && !task_waitingForHost.IsFaulted))
                 {
-                    return ZoomState.InMeeting;
+                    return ZoomState.JoinedMeeting;
                 }
-                else if (findFailedTask.IsCompleted && !findFailedTask.IsFaulted)
+                else if (task_joiningFailed.IsCompleted && !task_joiningFailed.IsFaulted)
                 {
                     return ZoomState.JoiningFailed;
                 }
-                else if (passwordRequiredTask.IsCompleted && !passwordRequiredTask.IsFaulted)
+                else if (task_passwordRequired.IsCompleted && !task_passwordRequired.IsFaulted)
                 {
                     return ZoomState.PasswordRequired;
                 }
-                Thread.Sleep(500);
-            } while (!findFailedTask.IsCompleted || !findCamPreviewTask.IsCompleted || !mainWindowTask.IsCompleted || !passwordRequiredTask.IsCompleted);
 
-            return ZoomState.JoiningFailed;
+                Thread.Sleep(500);
+            } while (!task_joiningFailed.IsCompleted
+            || !task_cameraPreview.IsCompleted
+            || !task_meetingWindow.IsCompleted
+            || !task_passwordRequired.IsCompleted
+            || !task_waitingForHost.IsCompleted);
+
+            //throw new Exception("Zoom after join state cannot be determined.");
+            //Throw here instead?
+            return ZoomState.UnknownState;
         }
 
-        void ZoomWaitUntilStateIsNot(ZoomState stateNotToBe, TimeSpan timeout)
+        //Returns the new state, will throw on timeout
+        ZoomState ZoomWaitUntilStateIsNot(ZoomState stateNotToBe, TimeSpan timeout)
         {
-            _ = Retry.WhileFalse(() =>
+            return Retry.While(() =>
             {
-                return GetZoomStateAfterJoin(timeout) != stateNotToBe;
-            }, timeout, defaultIntervalForFunctions, true);
+                return GetZoomStateAfterJoin(timeout);
+            }, (state) => state == stateNotToBe,
+            timeout, defaultIntervalForFunctions, true).Result;
         }
 
         void ZoomSkipCameraDialog(TimeSpan timeout)
@@ -220,54 +239,31 @@ namespace YAZABNET
             Utils.ClickButtonInWindowByText(pswMenu, zWaitHostWndClass_PasswordScreenJoinBtnString);
         }
 
-        bool JoinZoom(string meetingID, string meetingPSW)
+        public bool JoinZoom(string meetingID, string meetingPSW)
         {
             TimeSpan timeoutForGUIFunctions = TimeSpan.FromSeconds(15);
             TimeSpan timeoutForZoomStart = TimeSpan.FromSeconds(30);
+            ZoomState currentState = ZoomState.UnknownState;
 
-            try
-            {
-                StartZoom();
-            }
-            catch (Exception exc)
-            {
-                Console.WriteLine("Error while trying to start Zoom. Exception: " + exc);
-            }
-
-            try
-            {
-                OpenZoomJoinMenu(timeoutForZoomStart);
-            }
-            catch (Exception exc)
-            {
-                Console.WriteLine("Main menu couldn't be found or interacted with. Exception: " + exc);
-            }
+            StartZoom();
+            OpenZoomJoinMenu(timeoutForZoomStart);
 
             ZoomEnterIDAndJoin(timeoutForGUIFunctions, meetingID);
-            if (GetZoomStateAfterJoin(timeoutForGUIFunctions) == ZoomState.PasswordRequired)
+            currentState = GetZoomStateAfterJoin(timeoutForGUIFunctions);
+
+            if (currentState == ZoomState.PasswordRequired)
             {
                 ZoomEnterPasswordAndJoin(meetingPSW, timeoutForGUIFunctions);
-                ZoomWaitUntilStateIsNot(ZoomState.PasswordRequired, timeoutForGUIFunctions);
+                currentState = ZoomWaitUntilStateIsNot(ZoomState.PasswordRequired, timeoutForGUIFunctions);
             }
 
-            if (GetZoomStateAfterJoin(timeoutForGUIFunctions) == ZoomState.JoiningFailed)
-            {
-                return false;
-            }
-
-            if (GetZoomStateAfterJoin(timeoutForGUIFunctions) == ZoomState.CamPreviewWindow)
+            if (currentState == ZoomState.CamPreviewWindow)
             {
                 ZoomSkipCameraDialog(timeoutForGUIFunctions);
-                ZoomWaitUntilStateIsNot(ZoomState.CamPreviewWindow, timeoutForGUIFunctions);
+                currentState = ZoomWaitUntilStateIsNot(ZoomState.CamPreviewWindow, timeoutForGUIFunctions);
             }
-            return true;
-        }
 
-        public void ZoomJoinWaitLeave(string meetingID, string meetingPSW, int meetingTimeInSeconds)
-        {
-            JoinZoom(meetingID, meetingPSW);
-            Thread.Sleep(meetingTimeInSeconds * 1000);
-            KillZoom();
+            return currentState == ZoomState.JoinedMeeting;
         }
     }
 }
