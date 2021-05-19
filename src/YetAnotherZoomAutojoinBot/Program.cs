@@ -40,7 +40,8 @@ namespace YAZABNET
 
             var engine = new FileHelperEngine<ScheduleEntry>();
             engine.BeforeReadRecord += new FileHelpers.Events.BeforeReadHandler<ScheduleEntry>(
-                (EngineBase _engine, FileHelpers.Events.BeforeReadEventArgs<ScheduleEntry> e) => e.SkipThisRecord = e.RecordLine.StartsWith("#")
+                (EngineBase _engine, FileHelpers.Events.BeforeReadEventArgs<ScheduleEntry> e)
+                => e.SkipThisRecord = string.IsNullOrWhiteSpace(e.RecordLine) || e.RecordLine.StartsWith("#")
             );
             var result = engine.ReadFile(csvFilePath);
 

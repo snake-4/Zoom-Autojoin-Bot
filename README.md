@@ -24,6 +24,9 @@ DayOfWeek,MeetingTimeIn24H,MeetingID,MeetingPassword,MeetingTimeInSeconds,Commen
 The path of the CSV file can also be passed as an argument to the program like this `program.exe "PathToCsv"`
 thus you can create a batch file to start the program without it asking the CSV path.
 
+#### 2.2 Drag-and-drop the .csv file
+You can also just drag-and-drop the .csv file on the program's executable.
+
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
