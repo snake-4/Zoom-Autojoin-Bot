@@ -39,19 +39,16 @@ namespace YAZABNET
             return foundElements.Select(x => x.AsWindow());
         }
 
-        public static async Task<List<Window>> GetWindowsByClassNameAndProcessNameWithTimeoutAsync(AutomationBase automation, string processName, string className, TimeSpan timeout)
+        public static IEnumerable<Window> GetWindowsByClassNameAndProcessNameWithTimeout(AutomationBase automation, string processName, string className, TimeSpan timeout)
         {
-            var windows = new List<Window>();
-            await Task.Run(() => Retry.WhileFalse(() =>
+            //Once the Retry.While API is asynchronous, I'll make most of these functions async
+            //As using Task.Run() would provide no benefits of async as the function blocks the whole thread and each call would spawn a new thread
+            //As of now the Retry.While API doesn't support cancellation tokens either, I'm going to add cancellation token stuff too once it does
+            return Retry.WhileEmpty(() =>
             {
                 var processIDs = FindProcess(processName).Select(x => x.Id);
-
-                windows.AddRange(GetTopLevelWindowsByClassName(automation, className)
-                    .Where(x => processIDs.Contains(x.Properties.ProcessId)));
-
-                return windows.Count > 0;
-            }, timeout, TimeSpan.FromMilliseconds(500), true, true));
-            return windows;
+                return GetTopLevelWindowsByClassName(automation, className).Where(x => processIDs.Contains(x.Properties.ProcessId));
+            }, timeout, TimeSpan.FromMilliseconds(500), true, true).Result;
         }
 
         public static void ClickButtonInWindowByText(Window window, string text)
