@@ -15,7 +15,7 @@ namespace YAZABNET
 {
     class ZoomAutomation
     {
-        const string zoomExecutableName = "Zoom.exe";
+        const string ZoomExecutableName = "Zoom.exe";
         const string ZPFTEWndClass_LoadingConnectingString = "Connecting\u2026"; //Both signed-in and anonymous users loading screen
         const string ZPFTEWndClass_JoinAMeetingBtnString = "Join a Meeting"; //Anonymous users menu
         const string ZPPTMainFrmWndClassEx_JoinBtnString = "Join"; //Signed-in users menu
@@ -27,6 +27,12 @@ namespace YAZABNET
         const string VideoPreviewWndClass_JoinWithoutVideoBtnString = "Join without Video";
         const string zWaitHostWndClass_PasswordTextBoxString = "Please enter meeting passcode";
         const string zWaitHostWndClass_PasswordScreenJoinBtnString = "Join Meeting";
+        const string AnonymousUserMenuClassName = "ZPFTEWndClass";
+        const string MultiplePurposeWindowClassName = "zWaitHostWndClass"; //This window is used for the "waiting for host" window, the join dialog and the passcode dialog.
+        const string SignedInUserMenuClassName = "ZPPTMainFrmWndClassEx";
+        const string CameraPreviewWindowClassName = "VideoPreviewWndClass";
+        const string FailedJoiningMeetingWindowClassName = "zJoinMeetingFailedDlgClass";
+        const string InMeetingMenuClassName = "ZPContentViewWndClass";
 
         enum ZoomState
         {
@@ -37,35 +43,43 @@ namespace YAZABNET
             UnknownState
         };
 
-        AutomationBase automation = new UIA3Automation();
-        TimeSpan defaultIntervalForFunctions = TimeSpan.FromMilliseconds(500);
+        private AutomationBase AutomationInstance = new UIA3Automation();
+        private TimeSpan DefaultIntervalForFunctions = TimeSpan.FromMilliseconds(500);
+        private string PathOfZoomExecutable = null;
 
-        string GetZoomPath()
+        public string GetZoomExecutablePath()
         {
-            var key1 = (string)Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ZoomUMX", "InstallLocation", null);
-            if (key1 != null)
+            if (PathOfZoomExecutable != null)
             {
-                return Path.Combine(key1, zoomExecutableName);
+                return PathOfZoomExecutable;
+            }
+            else
+            {
+                var key1 = (string)Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ZoomUMX", "InstallLocation", null);
+                if (key1 != null)
+                {
+                    return PathOfZoomExecutable = Path.Combine(key1, ZoomExecutableName);
+                }
+
+                var key2 = (string)Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ZoomUMX", "UninstallString", null);
+                if (key2 != null)
+                {
+                    return PathOfZoomExecutable = Path.Combine(key2.Replace("\"", "").Replace("\\uninstall\\Installer.exe /uninstall", ""), ZoomExecutableName);
+                }
+
+                var key3 = (string)Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Classes\\ZoomLauncher\\shell\\open\\command", "(Default)", null);
+                if (key3 != null)
+                {
+                    return PathOfZoomExecutable = Path.Combine(key3.Replace("\"", "").Replace("--url=%1", ""), ZoomExecutableName);
+                }
             }
 
-            var key2 = (string)Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ZoomUMX", "UninstallString", null);
-            if (key2 != null)
-            {
-                return Path.Combine(key2.Replace("\"", "").Replace("\\uninstall\\Installer.exe /uninstall", ""), zoomExecutableName);
-            }
-
-            var key3 = (string)Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\Classes\\ZoomLauncher\\shell\\open\\command", "(Default)", null);
-            if (key3 != null)
-            {
-                return Path.Combine(key3.Replace("\"", "").Replace("--url=%1", ""), zoomExecutableName);
-            }
-
-            return null;
+            throw new Exception("Couldn't get the Zoom executable's location. Please make sure that Zoom is installed!");
         }
 
         public void KillZoom()
         {
-            foreach (var item in Utils.FindProcess(zoomExecutableName))
+            foreach (var item in Utils.FindProcess(ZoomExecutableName))
             {
                 item.Kill();
             }
@@ -74,46 +88,46 @@ namespace YAZABNET
         void StartZoom()
         {
             KillZoom();
-            Process.Start(GetZoomPath()).WaitForInputIdle();
+            Process.Start(GetZoomExecutablePath()).WaitForInputIdle();
         }
 
         IEnumerable<Window> GetZoomWindowsByClassNameWithTimeout(string classname, TimeSpan timeout)
-           => Utils.GetWindowsByClassNameAndProcessNameWithTimeout(automation, zoomExecutableName, classname, timeout);
+           => Utils.GetWindowsByClassNameAndProcessNameWithTimeout(AutomationInstance, ZoomExecutableName, classname, timeout);
 
         Window GetZoomWindowByClassNameAndTitleWithTimeout(string classname, string title, TimeSpan timeout)
             => Retry.WhileNull(() =>
             {
                 return GetZoomWindowsByClassNameWithTimeout(classname, timeout).FirstOrDefault((x) => x.IsAvailable && x.Title == title);
-            }, timeout, defaultIntervalForFunctions, true, true).Result;
+            }, timeout, DefaultIntervalForFunctions, true, true).Result;
 
         Window GetZoomWaitingForHostWindow(TimeSpan timeout)
-           => GetZoomWindowByClassNameAndTitleWithTimeout("zWaitHostWndClass", zWaitHostWndClass_WaitingForHostScreenTitle, timeout);
+           => GetZoomWindowByClassNameAndTitleWithTimeout(MultiplePurposeWindowClassName, zWaitHostWndClass_WaitingForHostScreenTitle, timeout);
 
         Window GetZoomPasswordScreenWindow(TimeSpan timeout)
-           => GetZoomWindowByClassNameAndTitleWithTimeout("zWaitHostWndClass", zWaitHostWndClass_MeetingPasscodeScreenTitle, timeout);
+           => GetZoomWindowByClassNameAndTitleWithTimeout(MultiplePurposeWindowClassName, zWaitHostWndClass_MeetingPasscodeScreenTitle, timeout);
 
         Window GetZoomMainMenu(TimeSpan timeout)
         {
-            var signedInMenu = Task.Run(() => GetZoomWindowsByClassNameWithTimeout("ZPPTMainFrmWndClassEx", timeout));
-            var anonymousMenu = Task.Run(() => GetZoomWindowsByClassNameWithTimeout("ZPFTEWndClass", timeout));
+            var signedInUserMenu = Task.Run(() => GetZoomWindowsByClassNameWithTimeout(SignedInUserMenuClassName, timeout));
+            var anonymousUserMenu = Task.Run(() => GetZoomWindowsByClassNameWithTimeout(AnonymousUserMenuClassName, timeout));
 
-            while (!signedInMenu.IsCompleted || !anonymousMenu.IsCompleted)
+            while (!signedInUserMenu.IsCompleted || !anonymousUserMenu.IsCompleted)
             {
-                Thread.Sleep(defaultIntervalForFunctions);
+                Thread.Sleep(DefaultIntervalForFunctions);
 
-                if (signedInMenu.IsCompleted && !signedInMenu.IsFaulted)
+                if (signedInUserMenu.IsCompleted && !signedInUserMenu.IsFaulted)
                 {
-                    if (signedInMenu.Result.Count() > 0)
+                    if (signedInUserMenu.Result.Count() > 0)
                     {
-                        return signedInMenu.Result.First();
+                        return signedInUserMenu.Result.First();
                     }
                 }
 
-                if (anonymousMenu.IsCompleted && !anonymousMenu.IsFaulted)
+                if (anonymousUserMenu.IsCompleted && !anonymousUserMenu.IsFaulted)
                 {
-                    if (anonymousMenu.Result.Count() > 0)
+                    if (anonymousUserMenu.Result.Count() > 0)
                     {
-                        return anonymousMenu.Result.First();
+                        return anonymousUserMenu.Result.First();
                     }
                 }
             }
@@ -126,11 +140,11 @@ namespace YAZABNET
             Retry.WhileFalse(() =>
             {
                 var menu = GetZoomMainMenu(timeout);
-                if (menu.ClassName == "ZPPTMainFrmWndClassEx")
+                if (menu.ClassName == SignedInUserMenuClassName)
                 {
                     Utils.ClickButtonInWindowByText(menu, ZPPTMainFrmWndClassEx_JoinBtnString);
                 }
-                else if (menu.ClassName == "ZPFTEWndClass")
+                else if (menu.ClassName == AnonymousUserMenuClassName)
                 {
                     if (menu.FindAllDescendants(x => x.ByName(ZPFTEWndClass_LoadingConnectingString)).Length > 0
                         || menu.FindAllDescendants(x => x.ByName(ZPFTEWndClass_JoinAMeetingBtnString)).Length == 0)
@@ -141,12 +155,12 @@ namespace YAZABNET
                 }
 
                 return true;
-            }, timeout, defaultIntervalForFunctions, true, true);
+            }, timeout, DefaultIntervalForFunctions, true, true);
         }
 
         void ZoomEnterIDAndJoin(TimeSpan timeout, string meetingid, string username = null)
         {
-            var joinMenu = GetZoomWindowsByClassNameWithTimeout("zWaitHostWndClass", timeout).First();
+            var joinMenu = GetZoomWindowsByClassNameWithTimeout(MultiplePurposeWindowClassName, timeout).First();
 
             if (username != null)
             {
@@ -160,9 +174,9 @@ namespace YAZABNET
         {
             var task_passwordRequired = Task.Run(() => GetZoomPasswordScreenWindow(timeout));
             var task_waitingForHost = Task.Run(() => GetZoomWaitingForHostWindow(timeout));
-            var task_joiningFailed = Task.Run(() => GetZoomWindowsByClassNameWithTimeout("zJoinMeetingFailedDlgClass", timeout));
-            var task_cameraPreview = Task.Run(() => GetZoomWindowsByClassNameWithTimeout("VideoPreviewWndClass", timeout));
-            var task_meetingWindow = Task.Run(() => GetZoomWindowsByClassNameWithTimeout("ZPContentViewWndClass", timeout));
+            var task_joiningFailed = Task.Run(() => GetZoomWindowsByClassNameWithTimeout(FailedJoiningMeetingWindowClassName, timeout));
+            var task_cameraPreview = Task.Run(() => GetZoomWindowsByClassNameWithTimeout(CameraPreviewWindowClassName, timeout));
+            var task_meetingWindow = Task.Run(() => GetZoomWindowsByClassNameWithTimeout(InMeetingMenuClassName, timeout));
 
             //TODO: cancel all the other tasks when one of them completes
 
@@ -205,16 +219,16 @@ namespace YAZABNET
             {
                 return GetZoomStateAfterJoin(timeout);
             }, (state) => state == stateNotToBe,
-            timeout, defaultIntervalForFunctions, true, true).Result;
+            timeout, DefaultIntervalForFunctions, true, true).Result;
         }
 
         void ZoomSkipCameraDialog(TimeSpan timeout)
         {
             _ = Retry.WhileException(() =>
             {
-                Window findCamPreviewWindow = GetZoomWindowsByClassNameWithTimeout("VideoPreviewWndClass", timeout).First();
+                Window findCamPreviewWindow = GetZoomWindowsByClassNameWithTimeout(CameraPreviewWindowClassName, timeout).First();
                 Utils.ClickButtonInWindowByText(findCamPreviewWindow, VideoPreviewWndClass_JoinWithoutVideoBtnString);
-            }, timeout, defaultIntervalForFunctions, true);
+            }, timeout, DefaultIntervalForFunctions, true);
         }
 
         void ZoomEnterPasswordAndJoin(string meetingPSW, TimeSpan timeout)
@@ -228,14 +242,12 @@ namespace YAZABNET
         {
             TimeSpan timeoutForGUIFunctions = TimeSpan.FromSeconds(15);
             TimeSpan timeoutForZoomStart = TimeSpan.FromSeconds(30);
-            ZoomState currentState = ZoomState.UnknownState;
 
             StartZoom();
-
             OpenZoomJoinMenu(timeoutForZoomStart);
-
             ZoomEnterIDAndJoin(timeoutForGUIFunctions, meetingID);
-            currentState = GetZoomStateAfterJoin(timeoutForGUIFunctions);
+
+            ZoomState currentState = GetZoomStateAfterJoin(timeoutForGUIFunctions);
 
             if (currentState == ZoomState.PasswordRequired)
             {

@@ -9,13 +9,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Application = FlaUI.Core.Application;
 
 namespace YAZABNET
 {
-    static class Utils
+    static partial class Utils
     {
         public static TimeSpan TimeSpanFrom24HString(string str24hour)
         {
@@ -62,8 +60,10 @@ namespace YAZABNET
              );
 
             button.WaitUntilClickable(TimeSpan.FromSeconds(5))
-                .WaitUntilEnabled(TimeSpan.FromSeconds(5))
-                .Click();
+                .WaitUntilEnabled(TimeSpan.FromSeconds(5)).Invoke();
+            //.Click();
+            //If the Click() method must be used, make sure to make the window focused first
+            //and the Click() could have to be called a few times for the click to register in the program.
         }
 
         public static void SetEditControlInputByText(Window window, string text, string input)
@@ -79,6 +79,8 @@ namespace YAZABNET
             inputBox.WaitUntilClickable(TimeSpan.FromSeconds(5))
                 .WaitUntilEnabled(TimeSpan.FromSeconds(5))
                 .Focus();
+
+            //Zoom's edit controls implement both LegacyIAccessible and ValuePattern but neither of them implement SetValue
             Keyboard.Type(input);
         }
     }

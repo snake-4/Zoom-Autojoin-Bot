@@ -57,13 +57,11 @@ namespace YAZABNET
                     if (schedule.DayOfWeek == day)
                     {
                         DateTime meetingStartDate = DateTime.Today + Utils.TimeSpanFrom24HString(schedule.TimeIn24H);
-                        DateTime meetingEndDate = meetingStartDate + TimeSpan.FromSeconds(schedule.MeetingTimeInSeconds);
+                        DateTime meetingEndDate = meetingStartDate.AddSeconds(schedule.MeetingTimeInSeconds);
                         DateTime currentDate = DateTime.Now;
 
                         if ((currentDate > meetingStartDate) && (currentDate < meetingEndDate))
                         {
-                            int secondsUntilMeetingEnds = (int)(meetingEndDate - currentDate).TotalSeconds;
-
                             Console.WriteLine("Joining a session...");
                             Console.WriteLine($"-> Comment: {schedule.Comment}");
                             Console.WriteLine($"-> ID: {schedule.MeetingID}");
@@ -79,9 +77,19 @@ namespace YAZABNET
                                 }
                                 Console.WriteLine("Joined the session.");
 
-                                Thread.Sleep(schedule.MeetingTimeInSeconds * 1000);
-                                zoomAutomation.KillZoom();
 
+                                var autoResetEvent = new AutoResetEvent(false);
+                                var millisecondsToWait = (meetingEndDate - DateTime.Now).TotalMilliseconds;
+
+                                if (millisecondsToWait > 0)
+                                {
+                                    using (var timer = new Timer(_ => autoResetEvent.Set(), null, (uint)millisecondsToWait, Timeout.Infinite))
+                                    {
+                                        autoResetEvent.WaitOne();
+                                    }
+                                }
+
+                                zoomAutomation.KillZoom();
                                 Console.WriteLine("Session finished.");
                             }
                             catch (Exception exc)
