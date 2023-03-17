@@ -11,7 +11,7 @@ using System.IO;
 using System.Linq;
 using Application = FlaUI.Core.Application;
 
-namespace YAZABNET
+namespace ZoomAutojoinBot
 {
     static partial class Utils
     {

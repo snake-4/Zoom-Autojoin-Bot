@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Threading;
 
-namespace YAZABNET
+namespace ZoomAutojoinBot
 {
     class Program
     {
