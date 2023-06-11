@@ -18,7 +18,7 @@ namespace ZoomAutojoinBot
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Zoom autojoin bot by SnakePin, this time made with .NET!");
+            Console.WriteLine("Zoom Auto-join Bot!");
             Console.WriteLine("Version: " + GetVersionString());
 
             string csvFilePath;

@@ -3,7 +3,7 @@
 This is a Zoom auto-join bot written in C#. It can be configured using a CSV file.
 
 ## Installation
-#### 1. Download the [latest release from here](https://github.com/SnakePin/Zoom-Autojoin-Bot/releases)
+#### 1. Download the [latest release from here](https://github.com/snake-4/Zoom-Autojoin-Bot/releases)
 * **Important**: Make sure your computer has the .NET Framework 4.5
 ## Usage
 
@@ -31,4 +31,4 @@ You can also just drag-and-drop the .csv file on the program's executable.
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
-[MIT](https://github.com/SnakePin/Zoom-Autojoin-Bot/blob/main/LICENSE)
+[MIT](https://github.com/snake-4/Zoom-Autojoin-Bot/blob/main/LICENSE)
